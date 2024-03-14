@@ -57,6 +57,21 @@ model_impl = {
             acc_bit_width=15,
             weight_bit_width=4,
             weight_quant=CommonIntAccumulatorAwareWeightQuant),
+        
+    "quant_resnet18_w4a4_a2q_plus_32b":
+        partial(
+            quant_resnet18,
+            act_bit_width=4,
+            acc_bit_width=32,
+            weight_bit_width=4,
+            weight_quant=CommonIntAccumulatorAwareWeightQuant),
+    "quant_resnet18_w3a3_a2q_16b":
+        partial(
+            quant_resnet18,
+            act_bit_width=3,
+            acc_bit_width=16,
+            weight_bit_width=3,
+            weight_quant=CommonIntAccumulatorAwareZeroCenterWeightQuant),    
     "quant_resnet18_w4a4_a2q_14b":
         partial(
             quant_resnet18,
@@ -197,14 +212,14 @@ def get_cifar10_dataloaders(
         pin_memory: bool = True,
         download: bool = False) -> Tuple[Type[DataLoader]]:
 
-    mean, std = [0.491, 0.482, 0.447], [0.247, 0.243, 0.262]
+    # mean, std = [0.491, 0.482, 0.447], [0.247, 0.243, 0.262]
 
     # create training dataloader
     transform_train = transforms.Compose([
         transforms.RandomCrop(32, padding=4),
         transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std)])
+        transforms.ToTensor()])
+        # transforms.Normalize(mean=mean, std=std)])
     trainset = torchvision.datasets.CIFAR10(
         root=data_root,
         train=True,
@@ -222,8 +237,8 @@ def get_cifar10_dataloaders(
 
     # creating the validation dataloader
     transform_test = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize(mean=mean, std=std),])
+        transforms.ToTensor()])
+        # transforms.Normalize(mean=mean, std=std),])
     testset = torchvision.datasets.CIFAR10(
         root=data_root,
         train=False,
