@@ -62,8 +62,8 @@ class QuantLinear(QuantWBIOL, Linear):
     def channelwise_separable(self) -> bool:
         return False
 
-    def forward(self, input: Union[Tensor, QuantTensor]) -> Union[Tensor, QuantTensor]:
-        return self.forward_impl(input)
+    def forward(self, input: Union[Tensor, QuantTensor], shared_weight_bits: int = 0) -> Union[Tensor, QuantTensor]:
+        return self.forward_impl(input,shared_weight_bits)
 
     def inner_forward_impl(self, x: Tensor, quant_weight: Tensor, quant_bias: Optional[Tensor]):
         output_tensor = linear(x, quant_weight, quant_bias)

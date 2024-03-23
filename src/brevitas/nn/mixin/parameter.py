@@ -18,9 +18,11 @@ from brevitas.quant_tensor import QuantTensor
 
 from .base import QuantProxyMixin
 
+import torch
+from bitarray import bitarray
 WeightQuantType = Union[WeightQuantProxyProtocol, Type[Injector], Type[ExtendedInjector]]
 BiasQuantType = Union[BiasQuantProxyProtocol, Type[Injector], Type[ExtendedInjector]]
-
+static_variable = 0
 
 class QuantWeightMixin(QuantProxyMixin):
     __metaclass__ = ABCMeta
@@ -60,7 +62,8 @@ class QuantWeightMixin(QuantProxyMixin):
     def quant_weight(
             self,
             quant_input: Optional[QuantTensor] = None,
-            subtensor_slice_list: List[Optional[Tuple[int, int]]] = None):
+            subtensor_slice_list: List[Optional[Tuple[int, int]]] = None, 
+            shared_weight_bits: int = 0):
         weights_to_quantize = self.weight
         if not self.weight_quant.is_quant_enabled and hasattr(self, 'weight_orig'):
             weights_to_quantize = self.weight_orig
@@ -107,6 +110,29 @@ class QuantWeightMixin(QuantProxyMixin):
             assert self._cached_sub_tensor_slice_list_modules is not None, "Missing cache of modules to slice."
             for m in self._cached_sub_tensor_slice_list_modules:
                 m.subtensor_slice_list = [None]
+
+        # we are keeping some of the bits
+        if shared_weight_bits != 0 and self.quant_weight_bit_width() > shared_weight_bits:
+            print("before the apply of sharing weights\n" + str(out))
+            intTensor = out._pre_round_int_value
+            print("Integer Representation: " + str(intTensor))
+            if self.is_quant_weight_signed:
+                if self.is_quant_weight_narrow_range:
+                    # in order to be differentiable we use torch max and min to clip the weights
+                    intTensor = torch.max(torch.min(intTensor, torch.tensor(2**(shared_weight_bits-1) - 1)), torch.tensor(-2**(shared_weight_bits-1) + 1))
+                else:
+                    intTensor = torch.max(torch.min(intTensor, torch.tensor(2**(shared_weight_bits-1) - 1)), torch.tensor(-2**(shared_weight_bits-1)))
+            else:
+                #no need to keep the sign
+                intTensor = torch.max(torch.min(intTensor, torch.tensor(2**(shared_weight_bits) - 1)), torch.tensor(0))
+            # out.values = tempTensor
+            floatTensor = intTensor * self.quant_weight_scale().type(torch.float32)
+            print("Integer Representation after clip: " + str(intTensor))
+            # int_value = value / scale
+            floatTensor = floatTensor + self.quant_weight_zero_point().type(torch.float32)
+            out = out._replace(value=floatTensor)
+            out = out._replace(bit_width=torch.tensor(shared_weight_bits).type(torch.float32))
+            print("after the apply of sharing weights\n" + str(out))
         return out
 
     def int_weight(self, float_datatype=False):
