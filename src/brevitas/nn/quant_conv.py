@@ -194,8 +194,8 @@ class QuantConv2d(QuantWBIOL, Conv2d):
         out = F.conv2d(x, weight, bias, self.stride, 0, self.dilation, self.groups)
         return out
 
-    def forward(self, input: Union[Tensor, QuantTensor]) -> Union[Tensor, QuantTensor]:
-        return self.forward_impl(input)
+    def forward(self, input: Union[Tensor, QuantTensor], shared_weight_bits: int = 0) -> Union[Tensor, QuantTensor]:
+        return self.forward_impl(input,shared_weight_bits)
 
     def inner_forward_impl(self, x: Tensor, quant_weight: Tensor, quant_bias: Optional[Tensor]):
         if self.is_same_padded_strided:

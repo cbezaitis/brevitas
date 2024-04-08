@@ -134,7 +134,7 @@ class QuantWeightMixin(QuantProxyMixin):
             # print("before the apply of sharing weights\t" + str(out.value))
             intTensor = out._pre_round_int_value.type(torch.int32)
             # print("Integer Representation: \t\t\t " + str(intTensor))
-            left_shift_amount = self.quant_weight_bit_width() - shared_weight_bits
+            left_shift_amount = self.quant_weight_bit_width() - shared_weight_bits + 1
             # print("left shift amount = " + str(left_shift_amount))
             if self.is_quant_weight_signed:
                 if self.is_quant_weight_narrow_range:
