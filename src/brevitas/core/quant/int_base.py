@@ -11,7 +11,7 @@ from brevitas.core.function_wrapper import TensorClamp
 from brevitas.core.quant.delay import DelayWrapper
 from brevitas.function.ops import max_int
 from brevitas.function.ops import min_int
-
+import inspect
 
 class IntQuant(brevitas.jit.ScriptModule):
     """
@@ -80,11 +80,26 @@ class IntQuant(brevitas.jit.ScriptModule):
         return max_int(self.signed, self.narrow_range, bit_width)
 
     @brevitas.jit.script_method
-    def forward(self, scale: Tensor, zero_point: Tensor, bit_width: Tensor, x: Tensor) -> Tensor:
-        y_int = self.to_int(scale, zero_point, bit_width, x)
+    def forward(self, scale: Tensor, zero_point: Tensor, bit_width: Tensor, x: Tensor, shared_bit_width: Tensor = torch.tensor(0)) -> Tensor:
+        if shared_bit_width != 0:
+            new_bit_width = shared_bit_width
+        else:
+            new_bit_width = bit_width
+        y_int = self.to_int(scale, zero_point, new_bit_width, x)
         y = y_int - zero_point
         y = y * scale
         y = self.delay_wrapper(x, y)
+        # print("IntQuant shared_bit_width: "+ str(shared_bit_width) +  "bit_width: " + str(bit_width))
+        # # print("Weights with normal bit_width: " +str(bit_width) +"\n"+ str(y))
+        # y_int_shared = self.to_int(scale, zero_point, shared_bit_width, x)
+        # y_shared = y_int_shared - zero_point
+        # y_shared = y_shared * scale
+        # y_shared = self.delay_wrapper(x, y_shared)
+        # print("Weights with shared bit_width: " +str(shared_bit_width) +"\n"+ str(y_shared))
+        # caller_frame = inspect.stack()[1]
+        # caller_function = caller_frame.function
+        # caller_file = caller_frame.filename
+        # print("Function IntQuant() is called by:", caller_function, "in file:", caller_file)
         return y
 
 

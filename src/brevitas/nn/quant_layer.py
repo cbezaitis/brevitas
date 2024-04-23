@@ -293,7 +293,7 @@ class QuantWeightBiasInputOutputLayer(QuantBiasMixin, QuantWeightMixin, QuantInp
     def merge_bn_in(self, bn):
         merge_bn(self, bn, output_channel_dim=self.output_channel_dim)
 
-    def forward_impl(self, inp: Union[Tensor, QuantTensor], shared_weight_bits: int = 0) -> Union[Tensor, QuantTensor]:
+    def forward_impl(self, inp: Union[Tensor, QuantTensor], shared_weight_bits: Tensor = torch.tensor(0)) -> Union[Tensor, QuantTensor]:
         output_scale = None
         output_bit_width = None
         output_zero_point = None

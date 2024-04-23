@@ -58,7 +58,7 @@ class PrescaledRestrictIntQuantWithInputBitWidth(brevitas.jit.ScriptModule):
 
     @brevitas.jit.script_method
     def forward(self, x: Tensor, scale: Tensor,
-                input_bit_width: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+                input_bit_width: Tensor, shared_weight_bits:Tensor = torch.tensor(0)) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         bit_width = self.msb_clamp_bit_width_impl(input_bit_width)
         zero_point = self.zero_point()
         y = self.int_quant(scale, zero_point, bit_width, x)
@@ -76,7 +76,7 @@ class PrescaledRestrictIntQuant(brevitas.jit.ScriptModule):
         self.zero_point = StatelessBuffer(torch.tensor(0.0))
 
     @brevitas.jit.script_method
-    def forward(self, x: Tensor, scale: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor, scale: Tensor, shared_weight_bits:Tensor = torch.tensor(0)) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         msb_clamp_bit_width = self.msb_clamp_bit_width_impl()
         zero_point = self.zero_point()
         y = self.int_quant(scale, zero_point, msb_clamp_bit_width, x)
@@ -147,13 +147,13 @@ class RescalingIntQuant(brevitas.jit.ScriptModule):
         self.msb_clamp_bit_width_impl = bit_width_impl
 
     @brevitas.jit.script_method
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor, shared_weight_bits: Tensor = torch.tensor(0)) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         bit_width = self.msb_clamp_bit_width_impl()
         threshold = self.scaling_impl(x)
         int_threshold = self.int_scaling_impl(bit_width)
         scale = threshold / int_threshold
         zero_point = self.zero_point_impl(x, scale, bit_width)
-        y = self.int_quant(scale, zero_point, bit_width, x)
+        y = self.int_quant(scale, zero_point, bit_width, x, shared_weight_bits)
         return y, scale, zero_point, bit_width
 
 
@@ -178,7 +178,8 @@ class DecoupledRescalingIntQuant(brevitas.jit.ScriptModule):
         self.msb_clamp_bit_width_impl = bit_width_impl
 
     @brevitas.jit.script_method
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor, shared_weight_bits: Tensor = torch.tensor(0)) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+        print("DecoupledRescalingIntQuant")
         bit_width = self.msb_clamp_bit_width_impl()
         int_threshold = self.int_scaling_impl(bit_width)
         pre_threshold = self.pre_scaling_impl(x)
@@ -204,7 +205,7 @@ class TruncIntQuant(brevitas.jit.ScriptModule):
 
     @brevitas.jit.script_method
     def forward(self, x: Tensor, scale: Tensor, zero_point: Tensor,
-                input_bit_width: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+                input_bit_width: Tensor, shared_weight_bits:Tensor = torch.tensor(0)) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         y = x / scale
         y = y + zero_point
         y = round_ste(y)  # clean up floating point error
@@ -244,7 +245,7 @@ class DecoupledRescalingIntQuantWithInput(DecoupledRescalingIntQuant):
 
     @brevitas.jit.script_method
     def forward(self, x: Tensor, input_bit_width: Tensor,
-                input_is_signed: bool) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
+                input_is_signed: bool, shared_weight_bits:Tensor = torch.tensor(0)) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor]:
         bit_width = self.msb_clamp_bit_width_impl()
         int_threshold = self.int_scaling_impl(bit_width)
         pre_threshold = self.pre_scaling_impl(x, input_bit_width, input_is_signed)
