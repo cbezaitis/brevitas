@@ -115,10 +115,10 @@ class DecoupledWeightQuantProxyFromInjector(WeightQuantProxyFromInjector):
         out, scale, zero_point, bit_width, pre_scale, pre_zero_point = output_tuple
         return pre_zero_point
 
-    def forward(self, x: torch.Tensor) -> QuantTensor:
+    def forward(self, x: torch.Tensor, shared_weight_bits: torch.Tensor = torch.tensor(0)) -> QuantTensor:
         if self.is_quant_enabled:
             impl = self.export_handler if self.export_mode else self.tensor_quant
-            out, scale, zero_point, bit_width, pre_scale, pre_zero_point = impl(x)
+            out, scale, zero_point, bit_width, pre_scale, pre_zero_point = impl(x, shared_weight_bits)
             return QuantTensor(out, scale, zero_point, bit_width, self.is_signed, self.training)
         else:  # quantization disabled
             return QuantTensor(x, training=self.training)
@@ -147,10 +147,10 @@ class DecoupledWeightQuantWithInputProxyFromInjector(DecoupledWeightQuantProxyFr
 
     def forward(
             self, x: torch.Tensor, input_bit_width: torch.Tensor,
-            input_is_signed: bool) -> QuantTensor:
+            input_is_signed: bool, shared_weight_bits: torch.Tensor = torch.tensor(0) ) -> QuantTensor:
         if self.is_quant_enabled:
             impl = self.export_handler if self.export_mode else self.tensor_quant
-            out, scale, zero_point, bit_width, pre_scale, pre_zero_point = impl(x, input_bit_width, input_is_signed)
+            out, scale, zero_point, bit_width, pre_scale, pre_zero_point = impl(x, input_bit_width, input_is_signed, shared_weight_bits)
             return QuantTensor(out, scale, zero_point, bit_width, self.is_signed, self.training)
         else:  # quantization disabled
             return QuantTensor(x, training=self.training)

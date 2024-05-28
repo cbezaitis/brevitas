@@ -56,7 +56,7 @@ class BinaryQuant(brevitas.jit.ScriptModule):
         self.delay_wrapper = DelayWrapper(quant_delay_steps)
 
     @brevitas.jit.script_method
-    def forward(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def forward(self, x: Tensor, shared_weight_bits: Tensor = torch.tensor(0)) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         scale = self.scaling_impl(x)
         y = binary_sign_ste(x) * scale
         y = self.delay_wrapper(x, y)
