@@ -3,6 +3,7 @@
 
 from typing import Optional, Tuple, Union
 
+import torch
 from torch import nn
 from torch import Tensor
 from torch.nn import Identity
@@ -77,9 +78,9 @@ class FusedActivationQuantProxy(brevitas.jit.ScriptModule):
         self.tensor_quant = tensor_quant
 
     @brevitas.jit.script_method
-    def forward(self, x):
+    def forward(self, x, shared_activation_bits: Tensor = torch.tensor(0)):
         x = self.activation_impl(x)
-        x, output_scale, output_zp, output_bit_width = self.tensor_quant(x)
+        x, output_scale, output_zp, output_bit_width = self.tensor_quant(x, shared_activation_bits= shared_activation_bits)
         return x, output_scale, output_zp, output_bit_width
 
 
@@ -137,7 +138,7 @@ class ActQuantProxyFromInjector(QuantProxyFromInjector, ActQuantProxyProtocol):
         scale = self.__call__(self._zero_hw_sentinel()).bit_width
         return scale
 
-    def forward(self, x: Union[Tensor, QuantTensor]) -> QuantTensor:
+    def forward(self, x: Union[Tensor, QuantTensor], shared_activation_bits: Tensor = torch.tensor(0)) -> QuantTensor:
         if self.fused_activation_quant_proxy is not None:
             y = x
             if isinstance(y, QuantTensor):
@@ -149,7 +150,7 @@ class ActQuantProxyFromInjector(QuantProxyFromInjector, ActQuantProxyProtocol):
             elif not self.is_quant_enabled:
                 y = self.fused_activation_quant_proxy.activation_impl(y)
             else:
-                y = self.fused_activation_quant_proxy(y)
+                y = self.fused_activation_quant_proxy(y, shared_activation_bits)
             # If y is an empty QuantTensor, we need to check if this is a passthrough proxy,
             # otherwise return an empty QuantTensor
             if isinstance(y, tuple) and not any(map(lambda f: f is None, y)):

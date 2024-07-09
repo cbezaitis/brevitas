@@ -27,7 +27,7 @@ __all__ = [
 @runtime_checkable
 class WeightQuantProxyProtocol(QuantProxyProtocol, Protocol):
 
-    def forward(self, x: torch.Tensor) -> QuantTensor:
+    def forward(self, x: torch.Tensor, shared_weight_bits: Tensor = torch.tensor(0) ) -> QuantTensor:
         ...
 
 
@@ -96,8 +96,12 @@ class WeightQuantProxyFromInjector(ParameterQuantProxyFromInjector, WeightQuantP
 
     def forward(self, x: torch.Tensor, shared_weight_bits: torch.Tensor = torch.tensor(0) ) -> QuantTensor:
         if self.is_quant_enabled:
-            impl = self.export_handler if self.export_mode else self.tensor_quant
-            out, scale, zero_point, bit_width = impl(x, shared_weight_bits = shared_weight_bits )
+            if self.export_mode:
+                impl = self.export_handler
+                out, scale, zero_point, bit_width = impl(x, shared_weight_bits)
+            else: 
+                impl = self.tensor_quant
+                out, scale, zero_point, bit_width = impl(x, shared_weight_bits = shared_weight_bits )
             return QuantTensor(out, scale, zero_point, bit_width, self.is_signed, self.training)
         else:  # quantization disabled
             return QuantTensor(x, training=self.training)

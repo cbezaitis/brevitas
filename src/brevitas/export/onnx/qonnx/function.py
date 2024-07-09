@@ -32,7 +32,7 @@ class BrevitasBinaryQuantFn(Function):
 class BrevitasQuantFn(Function):
 
     @staticmethod
-    def symbolic(g, x, scale, zero_point, bit_width, narrow_range, signed, rounding_mode):
+    def symbolic(g, x, scale, zero_point, bit_width, narrow_range, signed, rounding_mode, shared_weight_bits, shared_activation_bits):
         ret = g.op(
             f'{DOMAIN_STRING}::Quant',
             x,
@@ -46,14 +46,14 @@ class BrevitasQuantFn(Function):
         return ret
 
     @staticmethod
-    def forward(ctx, x, scale, zero_point, bit_width, narrow_range, signed, rounding_mode):
+    def forward(ctx, x, scale, zero_point, bit_width, narrow_range, signed, rounding_mode, shared_weight_bits: torch.Tensor = torch.tensor(0),  shared_activation_bits: torch.Tensor = torch.tensor(0)):
         float_to_int_impl = solve_float_to_int_impl_from_enum(rounding_mode)
         quant = IntQuant(
             float_to_int_impl=float_to_int_impl(),
             tensor_clamp_impl=TensorClamp(),
             narrow_range=narrow_range,
             signed=signed)
-        y = quant(scale, zero_point, bit_width, x)
+        y = quant(scale, zero_point, bit_width, x, shared_weight_bits, shared_activation_bits)
         return y
 
 

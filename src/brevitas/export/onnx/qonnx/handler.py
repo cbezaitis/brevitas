@@ -44,6 +44,8 @@ class BrevitasQuantProxyHandler(ONNXBaseHandler, ABC):
         scale = self.symbolic_kwargs['scale']
         zero_point = self.symbolic_kwargs['zero_point']
         bit_width = self.symbolic_kwargs['bit_width']
+        self.symbolic_kwargs['shared_weight_bits'] = torch.tensor(0)
+        self.symbolic_kwargs['shared_activation_bits'] = torch.tensor(0)     
         if bit_width == 1:
             x = BrevitasBinaryQuantFn.apply(x, *self.symbolic_kwargs.values())
         else:
@@ -78,7 +80,7 @@ class BrevitasWeightQuantProxyHandler(BrevitasQuantProxyHandler):
                 # override rounding mode since quantization has been pre-applied
                 'rounding_mode': 'ROUND'}
 
-    def symbolic_execution(self, x: Tensor):
+    def symbolic_execution(self, x: Tensor, shared_weight_bits: torch.Tensor = torch.tensor(0)):
         quant_weight = self.quant_weight_values[x.data_ptr()]
         return super().symbolic_execution(quant_weight)
 
