@@ -130,7 +130,7 @@ class QuantNonLinearActLayer(QuantNonLinearActMixin, QuantInputMixin, QuantLayer
     def quant_output_bit_width(self):  # overrides from QuantLayerMixin
         return self.quant_act_bit_width()
 
-    def forward(self, input: Union[Tensor, QuantTensor]):
+    def forward(self, input: Union[Tensor, QuantTensor], shared_activation_bits: Tensor = torch.tensor(0)):
         input = self.unpack_input(input)
         quant_input = self.input_quant(input)
         # shortcut execution through the export impl during export
@@ -138,7 +138,7 @@ class QuantNonLinearActLayer(QuantNonLinearActMixin, QuantInputMixin, QuantLayer
             out = self.export_handler(quant_input.value)
             self._set_global_is_quant_layer(False)
             return out
-        out = self.act_quant(quant_input)
+        out = self.act_quant(quant_input, shared_activation_bits=shared_activation_bits)
         out = self.pack_output(out)
         return out
 
