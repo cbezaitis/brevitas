@@ -88,9 +88,7 @@ class IntQuant(brevitas.jit.ScriptModule):
             x = x / scale 
             y = x + zero_point
             y = self.float_to_int_impl(y)
-            y = y / 8.0
-            y = round_to_zero_ste(y)
-            y = y * 8.0 
+            y = binary_sign_ste(y) *4.0
             y = self.tensor_clamp_impl(y, min_val=min_int_val, max_val=max_int_val)
         else: 
             y = x / scale
