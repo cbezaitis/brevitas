@@ -34,6 +34,7 @@ __all__ = [
     'binary_sign_ste_impl',
     'ternary_sign_ste_impl',
     'floor_ste_impl',
+    'floor_ceil_ste_impl',
     'ceil_ste_impl',
     'round_to_zero_ste_impl',
     'scalar_clamp_min_ste_impl',
@@ -384,6 +385,33 @@ class AbsBinarySignGradFn(Function):
         return y
 
 
+
+class FloorCeilSteFn(Function):
+    """
+    Autograd function that implements :func:`torch.floor and torch.ceil` with a straight-through gradient estimator.
+
+    ``FloorCeilSteFn.apply(*args)`` is first aliased to :func:`floor_ceil_ste_impl(*args)
+    <brevitas.ops.autograd_ste_ops.floor_ceil_ste_impl>` and then wrapped by
+    :func:`~brevitas.function.ops_ste.floor_ste` when env ``BREVITAS_JIT=0``.
+    See :func:`~brevitas.function.ops_ste.floor_ste` for details on the interface and
+    examples.
+    """
+
+    @staticmethod
+    def forward(ctx, x: Tensor) -> Tensor:
+        y = torch.where(x >= 0.0, torch.where(x - torch.floor(x) <= 0.5, torch.floor(x), torch.ceil(x)), torch.where(x - torch.floor(x) <= 0.5, torch.ceil(x), torch.floor(x)))
+        return y
+
+    @staticmethod
+    def backward(ctx, grad_y: Tensor) -> Tensor:
+        return grad_y
+
+    @staticmethod
+    def symbolic(g, x: Tensor):
+        y = g.op('FloorCeil', x)
+        return y
+    
+    
 #: Alias for :class:`RoundSteFn.apply(*args)
 #: <brevitas.ops.autograd_ste_ops.RoundSteFn>`
 round_ste_impl = RoundSteFn.apply
@@ -399,6 +427,10 @@ ternary_sign_ste_impl = TernarySignSteFn.apply
 #: Alias for :class:`FloorSteFn.apply(*args)
 #: <brevitas.ops.autograd_ste_ops.FloorSteFn>`
 floor_ste_impl = FloorSteFn.apply
+
+#: Alias for :class:`FloorCeilSteFn.apply(*args)
+#: <brevitas.ops.autograd_ste_ops.FloorCeilSteFn>`
+floor_ceil_ste_impl = FloorCeilSteFn.apply
 
 #: Alias for :class:`CeilSteFn.apply(*args)
 #: <brevitas.ops.autograd_ste_ops.CeilSteFn>`

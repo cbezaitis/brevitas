@@ -25,6 +25,7 @@ __all__ = [
     'round_ste',
     'ceil_ste',
     'floor_ste',
+    'floor_ceil_ste',
     'tensor_clamp_ste',
     'tensor_clamp_ste_',
     'scalar_clamp_ste',
@@ -114,6 +115,28 @@ def floor_ste(x: Tensor) -> Tensor:
         return torch.floor(x)
     return fn_prefix.ops.autograd_ste_ops.floor_ste_impl(x)
 
+@script_flag
+def floor_ceil_ste(x: Tensor) -> Tensor:
+    """
+    Function that implements :func:`torch.floor_ceil` with a straight-through gradient estimator.
+
+    Notes:
+        Wrapper for either :func:`~brevitas.ops.autograd_ste_ops.floor_ste_impl` (with env
+        ``BREVITAS_JIT=0``) or its native just-in-time compiled variant (with ``BREVITAS_JIT=1``).
+
+    Examples:
+        >>> x = torch.tensor([1.7, -1.7, 1.5], requires_grad=True)
+        >>> y = floor_ceil_ste(x)
+        >>> y
+        tensor([ 2., -2., 1.], grad_fn=<FloorSteFnBackward>)
+        >>> grad = torch.tensor([0.1, -0.1])
+        >>> y.backward(grad)
+        >>> (x.grad == grad).all().item()
+        True
+    """
+    if torch._C._get_tracing_state():
+        return torch.where(x >= 0.0, torch.where(x - torch.floor(x) <= 0.5, torch.floor(x), torch.ceil(x)), torch.where(x - torch.floor(x) <= 0.5, torch.ceil(x), torch.floor(x)))
+    return fn_prefix.ops.autograd_ste_ops.floor_ceil_ste_impl(x)
 
 @script_flag
 def tensor_clamp_ste(x: Tensor, min_val: Tensor, max_val: Tensor) -> Tensor:

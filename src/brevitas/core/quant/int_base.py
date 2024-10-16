@@ -12,7 +12,7 @@ from brevitas.core.quant.delay import DelayWrapper
 from brevitas.function.ops import max_int
 from brevitas.function.ops import min_int
 from brevitas.function.ops_ste import binary_sign_ste
-from brevitas.function.ops_ste import floor_ste, ceil_ste, dpu_round_ste, round_to_zero_ste, binary_sign_ste
+from brevitas.function.ops_ste import floor_ste, ceil_ste, dpu_round_ste, round_to_zero_ste, binary_sign_ste, round_ste, floor_ceil_ste
 import inspect
 
 class IntQuant(brevitas.jit.ScriptModule):
@@ -68,27 +68,21 @@ class IntQuant(brevitas.jit.ScriptModule):
         
         min_int_val = self.min_int(bit_width)
         max_int_val = self.max_int(bit_width)
-        if shared_weight_bits == torch.tensor(3) or shared_activation_bits == torch.tensor(3):
+        if shared_weight_bits != torch.tensor(0) :
             x = x / scale 
             y = x + zero_point
             y = self.float_to_int_impl(y)
-            y = y / 2.0
+            y = y / torch.pow(2.0, bit_width - shared_weight_bits)
             y = round_to_zero_ste(y)
-            y = y * 2.0 
+            y = y * torch.pow(2.0, bit_width - shared_weight_bits)
             y = self.tensor_clamp_impl(y, min_val=min_int_val, max_val=max_int_val)
-        elif shared_weight_bits == torch.tensor(2) or shared_activation_bits == torch.tensor(2) :
+        elif shared_activation_bits != torch.tensor(0):
             x = x / scale 
             y = x + zero_point
             y = self.float_to_int_impl(y)
-            y = y / 4.0
+            y = y / torch.pow(2.0, bit_width - shared_activation_bits)
             y = round_to_zero_ste(y)
-            y = y * 4.0
-            y = self.tensor_clamp_impl(y, min_val=min_int_val, max_val=max_int_val)
-        elif shared_weight_bits == torch.tensor(1) or shared_activation_bits == torch.tensor(1):
-            x = x / scale 
-            y = x + zero_point
-            y = self.float_to_int_impl(y)
-            y = binary_sign_ste(y) *4.0
+            y = y * torch.pow(2.0, bit_width - shared_activation_bits)
             y = self.tensor_clamp_impl(y, min_val=min_int_val, max_val=max_int_val)
         else: 
             y = x / scale
