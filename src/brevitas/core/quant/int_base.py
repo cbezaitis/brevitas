@@ -12,7 +12,8 @@ from brevitas.core.quant.delay import DelayWrapper
 from brevitas.function.ops import max_int
 from brevitas.function.ops import min_int
 from brevitas.function.ops_ste import binary_sign_ste
-from brevitas.function.ops_ste import floor_ste, ceil_ste, dpu_round_ste, round_to_zero_ste, binary_sign_ste, round_ste, floor_ceil_ste
+from brevitas.function.ops_ste import floor_ste, ceil_ste, dpu_round_ste, round_to_zero_ste, binary_sign_ste, round_ste, floor_ceil_ste, abs_binary_sign_grad
+
 import inspect
 
 class IntQuant(brevitas.jit.ScriptModule):
@@ -55,7 +56,7 @@ class IntQuant(brevitas.jit.ScriptModule):
             signed: bool,
             float_to_int_impl: Module = RoundSte(),
             tensor_clamp_impl: Module = TensorClamp(),
-            quant_delay_steps: int = 0):
+            quant_delay_steps: int = 30):
         super(IntQuant, self).__init__()
         self.float_to_int_impl = float_to_int_impl
         self.tensor_clamp_impl = tensor_clamp_impl
@@ -68,22 +69,38 @@ class IntQuant(brevitas.jit.ScriptModule):
         
         min_int_val = self.min_int(bit_width)
         max_int_val = self.max_int(bit_width)
-        if shared_weight_bits != torch.tensor(0) :
+        if shared_weight_bits == torch.tensor(3) :
             x = x / scale 
             y = x + zero_point
             y = self.float_to_int_impl(y)
-            y = y / torch.pow(2.0, bit_width - shared_weight_bits)
-            y = round_to_zero_ste(y)
-            y = y * torch.pow(2.0, bit_width - shared_weight_bits)
+            y = 0.5 * y - 0.2667
+            y = round_ste(y)
+            y = y * 2.0
             y = self.tensor_clamp_impl(y, min_val=min_int_val, max_val=max_int_val)
-        elif shared_activation_bits != torch.tensor(0):
+        elif shared_activation_bits == torch.tensor(3):
             x = x / scale 
             y = x + zero_point
             y = self.float_to_int_impl(y)
-            y = y / torch.pow(2.0, bit_width - shared_activation_bits)
+            y = 0.4941 * y - 0.2059
             y = round_to_zero_ste(y)
-            y = y * torch.pow(2.0, bit_width - shared_activation_bits)
+            y = y * 2.0
             y = self.tensor_clamp_impl(y, min_val=min_int_val, max_val=max_int_val)
+        elif shared_weight_bits == torch.tensor(2):
+            x = x / scale 
+            y = x + zero_point
+            y = self.float_to_int_impl(y)
+            y = 0.2429 * y - 0.4
+            y = round_ste(y)
+            y = y * 4.0
+            y = self.tensor_clamp_impl(y, min_val=torch.tensor(-8), max_val=max_int_val)
+        elif shared_activation_bits == torch.tensor(2):
+            x = x / scale 
+            y = x + zero_point
+            y = self.float_to_int_impl(y)
+            y = 0.2353 * y - 0.2647
+            y = round_ste(y)
+            y = y * 4.0
+            y = self.tensor_clamp_impl(y, min_val=min_int_val, max_val=max_int_val)    
         else: 
             y = x / scale
             y = y + zero_point
@@ -102,8 +119,8 @@ class IntQuant(brevitas.jit.ScriptModule):
     @brevitas.jit.script_method
     def forward(self, scale: Tensor, zero_point: Tensor, bit_width: Tensor, x: Tensor, shared_weight_bits: Tensor = torch.tensor(0), shared_activation_bits: Tensor = torch.tensor(0)) -> Tensor:
         y_int = self.to_int(scale, zero_point, bit_width, x, shared_weight_bits = shared_weight_bits, shared_activation_bits=shared_activation_bits)
-        # print("SharingWeights: " + str(shared_weight_bits) +  "SharingActivations: " + str(shared_activation_bits) + " Scale:" + str(scale))
-        # print("Ints:")
+        # print("SharingWeights: " + str(shared_weight_bits) +  " SharingActivations: " + str(shared_activation_bits) + " Scale:" + str(scale))
+        # print("After Ints:")
         # print(y_int)
         y = y_int - zero_point
         y = y * scale
